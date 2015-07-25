@@ -1,15 +1,35 @@
+/*jslint es6 */
 'use strict';
-var Q = require('q');
-var colors = require('colors');
-var util = require('util');
-var geojsonhint = require('geojsonhint');
 
-var readFilePromise = function (filename) {
+let Q = require('q');
+let colors = require('colors');
+let util = require('util');
+let geojsonhint = require('geojsonhint');
+let geoJsonFiles;
+
+/**
+ * Returns true if the string str ends with the suffix.
+ * @param  {string} str    - The string to test for the string.
+ * @param  {string} suffix - The suffix of the string to test for.
+ * @return {bool}          - true if the string ends in the suffix. False if it doesn't.
+ */
+let endsWith = function (str, suffix) {
+  return str.indexOf(suffix, str.length - suffix.length) !== -1;
+};
+
+/**
+ * Returns a promise that eventually returns the contents
+ * of a file.
+ * @param  {string} filename        - The name of the file to read.
+ * @param  {string} [encoding=null] - The encoding to use when reading the file. Default is null.
+ * @return {raw buffer}             - The contents of the file.
+ */
+let readFilePromise = function (filename, encoding) {
   return Q.Promise(function (resolve, reject, notify) {
     var fs = require('fs');
 
-    console.log(colors.cyan(`Reading from file ${filename}`));
-    fs.readFile(filename, {'flag': 'r'}, function (err, data) {
+    // console.log(colors.cyan(`Reading from file ${filename}`));
+    fs.readFile(filename, { flag: 'r', encoding: encoding === undefined ? null : encoding }, function (err, data) {
       if (err) {
         return reject(err);
       }
@@ -19,42 +39,101 @@ var readFilePromise = function (filename) {
   });
 };
 
+/**
+ * Returns an array of strings containing the file names of the files
+ * at the path.
+ * @param  {string} path - The folder path.
+ * @return {string[]}    - An arry of strings containing the names of the files at the folder specified in path.
+ */
+let readdirPromise = function (path) {
+  return Q.Promise(function (resolve, reject, notify) {
+    var fs = require('fs');
 
-var holborn;
-var home;
+    // console.log(colors.cyan(`Reading directory structure from folder ${path}`));
+    fs.readdir(path, function (err, data) {
+      if (err) {
+        return reject(err);
+      }
 
-readFilePromise('./holborn.geojson')
-  .then(function (data) {
-    holborn = JSON.parse(data);
-    let errors = geojsonhint.hint(holborn);
+      return resolve(data);
+    });
+  });
+};
 
-    if (errors && errors.length) {
-      console.error(errors);
-    } else {
-      console.info('Holborn object linted.');
-    }
+let filterAllGeojsonFiles = function(files) {
+  if (!files || files.length === 0) {
+    return null
+  }
+
+  return files.filter(function (folder) { return endsWith(folder, '.geojson'); });
+};
+
+let hintGeoJsonFile = function(file) {
+  return Q.Promise(function(resolve, reject, notify) {
+    let filePath = file;
+
+    return readFilePromise(filePath, "UTF-8")
+      .then(function(content) {
+        let fileContent = content;
+        let contentObject;
+        let parseErrors;
+
+        try {
+          contentObject = JSON.parse(content)
+        }
+        catch (e) {
+          let err = new Error(`App.InvalidJson: File ${filePath} could not be parsed as valid JSON.`);
+          return reject(err);
+        }
+
+        try {
+          parseErrors = geojsonhint.hint(contentObject);
+        }
+        catch (e) {
+          let err = new Error(`App.InvalidGeoJson: File ${filePath} could not be hinted with Geo JSON.`);
+          return reject(err);
+        }
+
+        if (parseErrors.length > 0) {
+          let err = new Error(`App.InvalidGeoJson: File ${filePath} is invalid Geo JSON.`);
+          err.parseErrors = parseErrors;
+          return reject(err);
+        }
+
+        return resolve();
+      })
+  });
+};
+
+/**
+ * A generic catch function to be used in a promise chain. Just outputs an error message.
+ * @param  {object} err - The object that was rejected as part of the chain.
+ * @return {void}
+ */
+let genericErrorCatcher = function(err) {
+  if (err.message) {
+    console.error(colors.red(err.message));
+  }
+};
+
+readdirPromise('./')
+  .then(filterAllGeojsonFiles)
+
+  // Take the list of all files and add it to our page level variable.
+  .then(function(files) {
+    geoJsonFiles = files;
+    return files;
   })
 
-  .then(function() { return readFilePromise('./e9-7ea.geojson'); })
-  .then(function (data) {
-    home = JSON.parse(data);
-    let errors = geojsonhint.hint(home);
-
-    if (errors && errors.length) {
-      console.error(errors);
-    } else {
-      console.info('Home object linted.');
-    }
+  .then(function(files) {
+    return Q.all(files.map(function(file) {
+      return hintGeoJsonFile(file);
+    }));
   })
 
-  .then(function () {
-    // console.log(JSON.stringify(holborn, null, 2));
-    // console.log(JSON.stringify(home, null, 2));
+  .then(function() {
+    console.log("All files have passed. Congratulations.")
   })
 
-  .catch(function (err) {
-    console.error(colors.red("Unexpected error"));
-    console.error(colors.red(err));
-  })
-
+  .catch(genericErrorCatcher)
   .done();
