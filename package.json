@@ -1,6 +1,6 @@
 {
   "name": "bs-geospatial",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "repository": "https://github.com/blacksun1/bs-geospatial",
   "description": "Just some experiments with geo-spatial data.",
   "main": "index.js",
@@ -13,5 +13,9 @@
     "colors": "^1.0.0",
     "geojsonhint": "^1.1.0",
     "q": "^1.4.1"
+  },
+  "devDependencies": {
+    "grunt": "^0.4.5",
+    "grunt-ts": "^4.2.0"
   }
 }
