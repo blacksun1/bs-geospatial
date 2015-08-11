@@ -89,7 +89,8 @@ let hintGeoJsonFile = function(file) {
           contentObject = JSON.parse(content)
         }
         catch (e) {
-          let err = new Error(`App.InvalidJson: File ${filePath} could not be parsed as valid JSON.`);
+          let err = new Error(`File ${filePath} could not be parsed as valid JSON.`);
+          err.name = 'App.InvalidJson'
           return reject(err);
         }
 
@@ -98,6 +99,7 @@ let hintGeoJsonFile = function(file) {
         }
         catch (e) {
           let err = new Error(`App.InvalidGeoJson: File ${filePath} could not be hinted with Geo JSON.`);
+          err.name = 'App.InvalidGeoJson';
           return reject(err);
         }
 
@@ -119,28 +121,31 @@ let hintGeoJsonFile = function(file) {
  * @param  {object} err - The object that was rejected as part of the chain.
  * @return {void}
  */
-let genericErrorCatcher = (err) => {
-  if (err.message) {
-    console.error(colors.red(err.message));
+let genericErrorCatcher = function (err) {
+  if (err.name && err.message) {
+    console.error(colors.red(`An exception has occured: ${err.name}, ${err.message}`));
+    return;
   }
+
+  console.error(colors.red(err.message));
 };
 
 readdirPromise(process.cwd())
   .then(filterAllGeojsonFiles)
 
   // Take the list of all files and add it to our page level variable.
-  .then(function(files) {
+  .then((files) => {
     geoJsonFiles = files;
     return files;
   })
 
-  .then(function(files) {
+  .then((files) => {
     return Q.all(files.map(function(file) {
       return hintGeoJsonFile(file);
     }));
   })
 
-  .then(function() {
+  .then(() => {
     console.log("All files have passed. Congratulations.")
   })
 

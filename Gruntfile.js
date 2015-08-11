@@ -1,4 +1,6 @@
 (function () {
+  "use strict";
+
   module.exports = function (grunt) {
     grunt.initConfig({
       ts: {
@@ -7,9 +9,15 @@
           outDir: "dist",
           target: "es5"
         }
+      },
+      geojsonhint: {
+        files: [
+          '*.geojson'
+        ]
       }
     });
     grunt.loadNpmTasks("grunt-ts");
-    grunt.registerTask("default", ["ts"]);
+    grunt.loadNpmTasks("grunt-geojsonhint");
+    grunt.registerTask("default", ["ts", "geojsonhint"]);
   };
 }());
