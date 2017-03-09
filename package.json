@@ -11,7 +11,7 @@
   "license": "MIT",
   "dependencies": {
     "colors": "^1.0.0",
-    "geojsonhint": "^1.1.0",
+    "geojsonhint": "^2.0.0",
     "q": "^1.4.1"
   },
   "devDependencies": {
